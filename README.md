@@ -9,5 +9,6 @@ Required Modules (`pip install` these):
  * stem
  * SockiPy (included)
 
- Copyright Kevin Chen (aspin) 2014.
+
+Copyright Kevin Chen (aspin) 2014.
 
