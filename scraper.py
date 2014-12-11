@@ -2,13 +2,12 @@ import socks
 import socket
 import requests
 import stem.process
-import re
 import HTMLParser
 
 from pymongo import MongoClient
 from stem.util import term
 
-temp_data = []
+link_data = []
 
 tor = None
 parser = None
@@ -17,18 +16,51 @@ db = client['darkweb']
 pages = db['pages']
 
 SOCKS_PORT = 9050;
-URL = "http://zqktlwi4fecvo6ri.onion/wiki/index.php/Main_Page"
+MAIN_URL = "http://lacbzxobeprssrfx.onion/index.php"
+DEPTH = 2
 
 def main():
     proxy_setup()
-    r = query(URL)
-    print_lines("")
 
+    print_magenta_lines("ADDING INITIAL PAGE: " + MAIN_URL)
+    r = query(MAIN_URL)
+    
     global parser
     parser = ScraperParser()
     parser.feed(r.content)
 
+    pages.insert({'depth': DEPTH+1, 'content': r.content, 'url': MAIN_URL})
+    print_magenta_lines("MAIN_PAGE_ADDED: " + MAIN_URL)
+
+    crawl(DEPTH)
+
     kill()
+
+def crawl(depth):
+    if depth == 0:
+        return
+
+    counter = len(link_data)
+    print_white_lines("ADDING: " + str(counter) + " PAGES")
+    while len(link_data) > 0:
+        url = link_data.pop(0)
+        if url[0:4] == "http":
+            print_purple_lines("GETTING PAGE: " + url)
+            r = query(url)
+            parser.feed(r.content)
+            pages.insert({'depth': depth, 'content': r.content, 'url': url})
+            print_purple_lines("PAGED ADDED: " + url)
+
+        counter -= 1
+
+        if counter == 0:
+            depth -= 1
+            counter = len(link_data)
+            print_magenta_lines("DECREASED DEPTH: " + str(depth))
+
+        if depth == 0:
+            return
+
 
 ############################################################
 #                                                          #
@@ -44,25 +76,16 @@ class ScraperParser(HTMLParser.HTMLParser):
                     self.last_link = attr[1]
                     self.collect_link = True
 
-        print "Encountered a start tag:", tag, attrs
-
     def handle_endtag(self, tag):
-        print "Encountered an end tag :", tag
+        return
 
     def handle_data(self, data):
         try:    
             if self.collect_link:
-                temp_data.append((self.last_link, data))
+                link_data.append(self.last_link)
                 self.collect_link = False
         except:
             self.collect_link = False
-
-def parse_title():
-    return
-
-
-def parse_links(content):
-    return
 
 ############################################################
 #                                                          #
@@ -94,6 +117,15 @@ def kill():
 
 def print_lines(line):
     print term.format(line, term.Color.BLUE)
+
+def print_purple_lines(line):
+    print term.format(line, term.Color.GREEN)
+
+def print_white_lines(line):
+    print term.format(line, term.Color.WHITE)
+
+def print_magenta_lines(line):
+    print term.format(line, term.Color.MAGENTA)
 
 def getaddrinfo(*args):
     return [(socket.AF_INET, socket.SOCK_STREAM, 6, '', (args[0], args[1]))]
