@@ -10,5 +10,3 @@ Required Modules (`pip install` these):
  * SockiPy (included)
 
 
-Copyright Kevin Chen (aspin) 2014.
-
